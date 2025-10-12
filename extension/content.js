@@ -45,26 +45,161 @@ class LocalVaultContent {
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            cursor: grab;
             z-index: 10000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             transition: all 0.3s ease;
             font-size: 20px;
             opacity: 0.8;
+            user-select: none;
         `;
 
+        // Drag and drop functionality
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let fabStartX = 0;
+        let fabStartY = 0;
+        let clickStartTime = 0;
+        let hasMoved = false;
+
+        // Get stored position or use default
+        const storedPosition = localStorage.getItem('localvault-fab-position');
+        if (storedPosition) {
+            const { x, y } = JSON.parse(storedPosition);
+            fab.style.left = x + 'px';
+            fab.style.top = y + 'px';
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+        }
+
+        fab.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            hasMoved = false;
+            clickStartTime = Date.now();
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            
+            const rect = fab.getBoundingClientRect();
+            fabStartX = rect.left;
+            fabStartY = rect.top;
+            
+            fab.style.cursor = 'grabbing';
+            fab.style.transition = 'none';
+            fab.style.zIndex = '10001';
+            
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+
+            const deltaX = e.clientX - dragStartX;
+            const deltaY = e.clientY - dragStartY;
+            
+            // Mark as moved if dragged more than 5px
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                hasMoved = true;
+            }
+
+            const newX = fabStartX + deltaX;
+            const newY = fabStartY + deltaY;
+
+            // Keep within viewport bounds
+            const maxX = window.innerWidth - fab.offsetWidth;
+            const maxY = window.innerHeight - fab.offsetHeight;
+            
+            const clampedX = Math.max(0, Math.min(newX, maxX));
+            const clampedY = Math.max(0, Math.min(newY, maxY));
+
+            fab.style.left = clampedX + 'px';
+            fab.style.top = clampedY + 'px';
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            fab.style.cursor = 'grab';
+            fab.style.transition = 'all 0.3s ease';
+            fab.style.zIndex = '10000';
+
+            // Snap to nearest border
+            const rect = fab.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const distanceToLeft = centerX;
+            const distanceToRight = window.innerWidth - centerX;
+            const distanceToTop = centerY;
+            const distanceToBottom = window.innerHeight - centerY;
+            
+            const minDistance = Math.min(distanceToLeft, distanceToRight, distanceToTop, distanceToBottom);
+            
+            let finalX = rect.left;
+            let finalY = rect.top;
+            
+            // Snap to the nearest border with some padding
+            const padding = 20;
+            
+            if (minDistance === distanceToLeft) {
+                // Snap to left
+                finalX = padding;
+            } else if (minDistance === distanceToRight) {
+                // Snap to right
+                finalX = window.innerWidth - fab.offsetWidth - padding;
+            } else if (minDistance === distanceToTop) {
+                // Snap to top
+                finalY = padding;
+            } else {
+                // Snap to bottom
+                finalY = window.innerHeight - fab.offsetHeight - padding;
+            }
+            
+            fab.style.left = finalX + 'px';
+            fab.style.top = finalY + 'px';
+            
+            // Store position
+            localStorage.setItem('localvault-fab-position', JSON.stringify({ x: finalX, y: finalY }));
+
+            // Only trigger click if it wasn't a drag and was a quick click
+            const clickDuration = Date.now() - clickStartTime;
+            if (!hasMoved && clickDuration < 200) {
+                setTimeout(() => {
+                    this.showQuickUploadDialog();
+                }, 10);
+            }
+        });
+
         fab.addEventListener('mouseenter', () => {
-            fab.style.opacity = '1';
-            fab.style.transform = 'scale(1.1)';
+            if (!isDragging) {
+                fab.style.opacity = '1';
+                fab.style.transform = 'scale(1.1)';
+            }
         });
 
         fab.addEventListener('mouseleave', () => {
-            fab.style.opacity = '0.8';
-            fab.style.transform = 'scale(1)';
+            if (!isDragging) {
+                fab.style.opacity = '0.8';
+                fab.style.transform = 'scale(1)';
+            }
         });
 
-        fab.addEventListener('click', () => {
-            this.showQuickUploadDialog();
+        // Handle window resize to reposition if needed
+        window.addEventListener('resize', () => {
+            const rect = fab.getBoundingClientRect();
+            const maxX = window.innerWidth - fab.offsetWidth;
+            const maxY = window.innerHeight - fab.offsetHeight;
+            
+            if (rect.left > maxX || rect.top > maxY) {
+                const newX = Math.min(rect.left, maxX);
+                const newY = Math.min(rect.top, maxY);
+                fab.style.left = newX + 'px';
+                fab.style.top = newY + 'px';
+                localStorage.setItem('localvault-fab-position', JSON.stringify({ x: newX, y: newY }));
+            }
         });
 
         document.body.appendChild(fab);

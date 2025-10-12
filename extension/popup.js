@@ -462,9 +462,9 @@ class LocalVaultExtension {
 
             console.log('file.content_type', file.content_type)
             const displayName = file.content_type === 'text'
-    ? (file.title.substring(0, 40) + (file.title.length > 40 ? '...' : ''))
+    ? (file.title.substring(0, 28) + (file.title.length > 28 ? '...' : ''))
     : (file.original_name ?
-        file.original_name.substring(0, 40) + (file.original_name.length > 40 ? '...' : '')
+        file.original_name.substring(0, 28) + (file.original_name.length > 28 ? '...' : '')
         : 'File Name Not Found'
     );
 
@@ -474,12 +474,20 @@ class LocalVaultExtension {
 
             const delete_icon = document.createElement('span')
             delete_icon.innerHTML = `<i class="fa fa-trash" aria-hidden="true"></i>`
-            delete_icon.style.cssText = 'margin-left: auto; cursor: pointer; color: #f60000b5;';
+            delete_icon.style.cssText = 'margin-left: auto; cursor: pointer; color: #f60000b5;font-size: 14px';
+
+            const open_link = document.createElement('span')
+            open_link.innerHTML = `<a href="${}"><i class="fa fa-external-link" aria-hidden="true"></i> </a>`
+            open_link.style.cssText = 'margin-left: auto; margin-right: 5px; cursor: pointer; color: #df9a57; font-size: 14px';
+
 
             fileDiv.innerHTML = `
                 <div style="font-weight: 500; display: flex; justify-content: space-between; align-items: center;">
                     <span>${displayName}</span>
-                    ${delete_icon.outerHTML}
+                    <span class="icon_span">
+                        ${file.content_type === 'text' ? open_link.outerHTML : ''}
+                        ${delete_icon.outerHTML}
+                    </span>
                 </div>
                 <div style="font-size: 11px; opacity: 0.7;">
                     ${fileInfo}
